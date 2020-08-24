@@ -1,0 +1,9 @@
+silo main
+
+import io
+
+main :: () {
+    for n := |1...3| {
+        io.Println(n)
+    }
+}

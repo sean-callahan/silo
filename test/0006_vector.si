@@ -1,0 +1,26 @@
+silo math
+
+Vector3 :: {
+	X f32
+	Y f32
+	Z f32
+}
+
+Vector3.Add :: (b Vector3) Vector3 {
+	return Vector3{
+		X = this.X + b.X,
+		Y = this.Y + b.Y,
+		Z = this.Z + b.Z,
+	}
+}
+
+Vector3.Length :: () f32 {
+	return Sqrt(this.X * this.X, this.Y * this.Y, this.Z * this.Z)
+} 
+
+Vector3.Dot :: (b Vector3) f32 {
+	r := this.X * b.X
+	r += this.Y * b.Y
+	r += this.Z * b.Z
+	return r
+}

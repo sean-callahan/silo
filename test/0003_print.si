@@ -1,0 +1,7 @@
+silo main
+
+import io
+
+main :: () {
+    io.Println("Hey, World!")
+}

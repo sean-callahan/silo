@@ -1,0 +1,10 @@
+silo main
+
+import io
+
+main :: () {
+    arr := [1, 2, 3]
+    for n := arr {
+        io.Println(n)
+    }
+}

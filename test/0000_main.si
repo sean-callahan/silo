@@ -1,0 +1,5 @@
+silo main
+
+main :: () {
+    
+}
