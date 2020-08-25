@@ -2,11 +2,9 @@
 #define AST_H
 
 #include <stdarg.h>
+#include <stdio.h>
 
 #include "lex.h"
-
-#define expect(tokens, ...) _expect(tokens, COUNT(__VA_ARGS__), __VA_ARGS__)
-#define has(tokens, ...) _has(tokens, COUNT(__VA_ARGS__), __VA_ARGS__)
 
 typedef enum ast_type ast_type;
 
@@ -68,17 +66,17 @@ struct ast_expr {
 
 struct ast_arg {
     ast_arg *next;
-    ast_expr *expr;
+    ast_expr expr;
 };
 
 struct ast_unary {
     operator op;
-    ast_expr *left;
+    ast_expr right;
 };
 
 struct ast_binary {
     operator op;
-    ast_expr *left, *right;
+    ast_expr left, right;
 };
 
 struct ast_func_call {
@@ -86,10 +84,18 @@ struct ast_func_call {
     ast_arg *args;
 };
 
-ast_expr *parse_expr(token *tokens);
-ast_stmt *parse_stmt(token *tokens);
+ast_expr parse_expr(token *tokens);
+ast_stmt parse_stmt(token *tokens);
 
-static inline token *_expect(token* tokens, const int count, ...) {
+static inline void parse_error(const char *fmt, ...) {
+    va_list args;
+    va_start(args, fmt);
+    vfprintf(stderr, fmt, args);
+    va_end(args);
+    exit(1);
+}
+
+static inline token *expect(token* tokens, const int count, ...) {
     if (!tokens) {
         return 0;
     }
@@ -107,7 +113,25 @@ static inline token *_expect(token* tokens, const int count, ...) {
     return 0;
 }
 
-static inline int _vhas(token *tokens, const int count, va_list args) {
+static inline token *expect_op(token *tokens, const int count, ...) {
+    if (!tokens) {
+        return 0;
+    }
+    token *t = tokens;
+    int i;
+    va_list args;
+    va_start(args, count);
+    for (i = 0; i < count; i++) {
+        if (va_arg(args, operator) == t->op) {
+            tokens = t->right;
+            return t;
+        }
+    }
+    va_end(args);
+    return 0;
+}
+
+static inline int vhas(token *tokens, const int count, va_list args) {
     if (!tokens) {
         return 0;
     }
@@ -121,11 +145,11 @@ static inline int _vhas(token *tokens, const int count, va_list args) {
     return 0;
 }
 
-static inline int _has(token *tokens, const int count, ...) {
+static inline int has(token *tokens, const int count, ...) {
     int b;
     va_list args;
     va_start(args, count);
-    b = _vhas(tokens, count, args);
+    b = vhas(tokens, count, args);
     va_end(args);
     return 0;
 }
