@@ -2,14 +2,13 @@
 #include <stdio.h>
 #include <unistd.h>
 
+#include "ast.h"
 #include "lex.h"
 
 void token_print(token t) {
-    printf("%d (%d:%d) %zu ", t.type, t.line, t.col, t.text_size);
-    if (t.text_size) {
-        int i;
-        for (i = 0; i < t.text_size; i++)
-            printf("%c", t.text[i]);
+    printf("%s (%d:%d) ", token_type_text[t.type], t.line, t.col);
+    if (t.text) {
+        printf("%s", t.text);
     }
     printf("\n");
 }
@@ -17,12 +16,16 @@ void token_print(token t) {
 int main(int argc, char* argv[]) {
     int c;
 
+    int p = 0;
     int l = 0;
 
-    while ((c = getopt(argc, argv, "l")) != -1) {
+    while ((c = getopt(argc, argv, "lp")) != -1) {
         switch (c) {
             case 'l':
                 l = 1;
+                break;
+            case 'p':
+                p = 1;
                 break;
             default:
                 abort();
@@ -51,6 +54,31 @@ int main(int argc, char* argv[]) {
             t = next_token(&lex);
             token_print(*t);
         } while (t->type != TOKEN_EOF);
+    }
+
+    if (p) {
+        lexer lex = {0};
+        lex.src = &src;
+        token *tokens;
+        token *t;
+        do {
+            if (t) {
+                t->right = next_token(&lex);
+                t = t->right;
+            } else {
+                t = next_token(&lex);
+                tokens = t;
+            }
+        } while (t->type != TOKEN_EOF);
+
+        ast_stmt stmt;
+        do {
+            while (has(&tokens, TOKEN_TERM)) {
+                eat(&tokens);
+            }
+            stmt = parse_stmt(&tokens);
+            printf("stmt: %d\n", stmt.type);
+        } while (stmt.d);
     }
 
     return 0;

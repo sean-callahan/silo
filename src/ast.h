@@ -1,6 +1,7 @@
 #ifndef AST_H
 #define AST_H
 
+#include <assert.h>
 #include <stdarg.h>
 #include <stdio.h>
 
@@ -11,6 +12,8 @@ typedef enum ast_type ast_type;
 typedef struct ast_var       ast_var;
 typedef struct ast_param     ast_param;
 typedef struct ast_func      ast_func;
+typedef struct ast_silo      ast_silo;
+typedef struct ast_import    ast_import;
 typedef struct ast_stmt      ast_stmt;
 typedef struct ast_expr      ast_expr;
 typedef struct ast_arg       ast_arg;
@@ -19,12 +22,15 @@ typedef struct ast_binary    ast_binary;
 typedef struct ast_func_call ast_func_call;
 
 enum ast_type {
+    AST_UNKNOWN,
     AST_DECL_VAR,        /* variable declaration */
     AST_DECL_FUNC,       /* function declaration */
     AST_DECL_STRUCT,     /* struct declaration */
     AST_DECL_CONST,      /* constant declaration */
     STMT_ASSIGN,         /* variable assignment */
     STMT_IF,             /* if statement */
+    STMT_SILO,           /* silo statement */
+    STMT_IMPORT,         /* import statement */
     STMT_RETURN,         /* return statement */
 
     EXPR_NAME,
@@ -51,6 +57,15 @@ struct ast_func {
     ast_param *params;
     ast_param *returns;
     ast_stmt *body;
+};
+
+struct ast_silo {
+    token *path;
+};
+
+struct ast_import {
+    /* TODO: imports should support directories, so we need a delimiter. maybe '.'? */
+    token *path;
 };
 
 struct ast_stmt {
@@ -84,8 +99,8 @@ struct ast_func_call {
     ast_arg *args;
 };
 
-ast_expr parse_expr(token *tokens);
-ast_stmt parse_stmt(token *tokens);
+ast_expr parse_expr(token **tokens);
+ast_stmt parse_stmt(token **tokens);
 
 static inline void parse_error(const char *fmt, ...) {
     va_list args;
@@ -95,35 +110,42 @@ static inline void parse_error(const char *fmt, ...) {
     exit(1);
 }
 
-static inline token *expect(token* tokens, const int count, ...) {
+static inline token *eat(token **tokens) {
     if (!tokens) {
         return 0;
     }
-    token *t = tokens;
-    int i;
-    va_list args;
-    va_start(args, count);
-    for (i = 0; i < count; i++) {
-        if (va_arg(args, token_type) == t->type) {
-            tokens = t->right;
-            return t;
-        }
-    }
-    va_end(args);
-    return 0;
+    token *t = *tokens;
+    *tokens = t->right;
+    return t;
 }
 
-static inline token *expect_op(token *tokens, const int count, ...) {
+static inline token *peek(token **tokens) {
+    assert(tokens);
+    return *tokens;
+}
+
+static inline token *expect(token **tokens, const token_type type) {
+    token *t = eat(tokens);
+    if (!t) {
+        parse_error("unexpected EOF\n");
+    }
+    if (t->type != type) {
+        parse_error("expected type %s; got %s\n", token_type_text[type], token_type_text[t->type]);
+    }
+    return t;
+}
+
+static inline token *expect_op(token **tokens, const int count, ...) {
     if (!tokens) {
         return 0;
     }
-    token *t = tokens;
+    token *t = *tokens;
     int i;
     va_list args;
     va_start(args, count);
     for (i = 0; i < count; i++) {
         if (va_arg(args, operator) == t->op) {
-            tokens = t->right;
+            *tokens = t->right;
             return t;
         }
     }
@@ -131,36 +153,10 @@ static inline token *expect_op(token *tokens, const int count, ...) {
     return 0;
 }
 
-static inline int vhas(token *tokens, const int count, va_list args) {
-    if (!tokens) {
-        return 0;
-    }
-    token t = *tokens;
-    int i;
-    for (i = 0; i < count; i++) {
-        if (va_arg(args, token_type) == t.type) {
-            return 1;
-        }
-    }
-    return 0;
+static inline int has(token **tokens, const token_type type) {
+    assert(tokens && *tokens);
+    return (*tokens)->type == type;
 }
 
-static inline int has(token *tokens, const int count, ...) {
-    int b;
-    va_list args;
-    va_start(args, count);
-    b = vhas(tokens, count, args);
-    va_end(args);
-    return 0;
-}
-
-static inline token *eat(token *tokens) {
-    if (!tokens) {
-        return 0;
-    }
-    token *t = tokens;
-    tokens = t->right;
-    return t;
-}
 
 #endif

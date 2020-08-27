@@ -3,6 +3,30 @@
 
 #include "lex.h"
 
+/* TODO: we can probably move this back to the header file. */
+const char * const token_type_text[] = {
+    "TOKEN_EOF",
+    "TOKEN_TERM",
+    "TOKEN_NAME",
+    "TOKEN_NUMBER",
+    "TOKEN_STRING",
+    "TOKEN_DECL",
+    "TOKEN_ASSIGN",
+    "TOKEN_DEFINE",
+    "TOKEN_OP",
+    "TOKEN_OPOP",
+    "TOKEN_OPASSIGN",
+    "TOKEN_LPAREN",
+    "TOKEN_LBRACK",
+    "TOKEN_LBRACE",
+    "TOKEN_RPAREN",
+    "TOKEN_RBRACK",
+    "TOKEN_RBRACE",
+    "TOKEN_COLON",
+    "TOKEN_COMMA",
+    "TOKEN_DOT",
+};
+
 int source_open(source_file *src, const char *path) {
     src->fd = open(path, 0);
     if (!src->fd) {
@@ -57,7 +81,7 @@ lex:
             return emit(lex, TOKEN_DOT);
         case ':':
             nc = get(lex->src);
-            if (nc == '=') {
+            if (nc == ':') {
                 return emit(lex, TOKEN_DECL);
             }
             unget(lex->src, nc);

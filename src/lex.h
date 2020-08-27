@@ -42,6 +42,8 @@ enum token_type {
     TOKEN_DOT,         /* . */
 };
 
+extern const char * const token_type_text[];
+
 typedef enum operator operator;
 enum operator {
     OP_NONE,   /* no-op */
@@ -77,9 +79,6 @@ struct token {
 
     /* line number and column offset. */
     uint32_t line, col;
-
-    /* number of bytes in text. */
-    size_t text_size;
 
     /* text value of the token. */
     char *text;
@@ -162,9 +161,10 @@ static inline token *emit_op(lexer *lex, token_type type, operator op) {
     if (lex->tw > lex->text) {
         t->line = lex->tline;
         t->col = lex->tcol;
-        t->text_size = lex->tw - lex->text;
-        t->text = (char *)alloc(t->text_size);
-        memcpy(t->text, lex->text, t->text_size);
+        int text_size = lex->tw - lex->text;
+        t->text = (char *)alloc(text_size+1);
+        memcpy(t->text, lex->text, text_size);
+        t->text[text_size] = '\0'; 
         lex->tw = lex->text;
     }
     lex->tline = lex->tcol = 0;
