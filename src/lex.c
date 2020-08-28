@@ -83,6 +83,8 @@ lex:
             nc = get(lex->src);
             if (nc == ':') {
                 return emit(lex, TOKEN_DECL);
+            } else if (nc == '=') {
+                return emit(lex, TOKEN_DEFINE);
             }
             unget(lex->src, nc);
             return emit(lex, TOKEN_COLON);
@@ -92,7 +94,7 @@ lex:
                 return emit_op(lex, TOKEN_OPOP, OP_EQ);
             }
             unget(lex->src, nc);
-            return emit_op(lex, TOKEN_OP, OP_EQ);
+            return emit(lex, TOKEN_ASSIGN);
         case '!':
             nc = get(lex->src);
             if (nc == '=') {

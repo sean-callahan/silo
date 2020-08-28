@@ -20,6 +20,7 @@ typedef struct ast_arg       ast_arg;
 typedef struct ast_unary     ast_unary;
 typedef struct ast_binary    ast_binary;
 typedef struct ast_func_call ast_func_call;
+typedef struct ast_literal   ast_literal;
 
 enum ast_type {
     AST_UNKNOWN,
@@ -33,16 +34,11 @@ enum ast_type {
     STMT_IMPORT,         /* import statement */
     STMT_RETURN,         /* return statement */
 
-    EXPR_NAME,
+    EXPR_LITERAL,
     EXPR_UNARY,
     EXPR_BINARY,
     EXPR_FUNC_CALL,
     EXPR_MEMBER,
-};
-
-struct ast_var {
-    token *name;
-    token *type;
 };
 
 struct ast_param {
@@ -94,9 +90,19 @@ struct ast_binary {
     ast_expr left, right;
 };
 
+struct ast_literal {
+    token *value;
+};
+
 struct ast_func_call {
     token *name;
     ast_arg *args;
+};
+
+struct ast_var {
+    token *name;
+    token *type;
+    ast_expr expr;
 };
 
 ast_expr parse_expr(token **tokens);
@@ -154,8 +160,17 @@ static inline token *expect_op(token **tokens, const int count, ...) {
 }
 
 static inline int has(token **tokens, const token_type type) {
-    assert(tokens && *tokens);
+    if (!tokens) {
+        return 0;
+    }
     return (*tokens)->type == type;
+}
+
+static inline int has_op(token **tokens, const token_type type, const operator op) {
+    if (!tokens) {
+        return 0;
+    }
+    return ((*tokens)->type == type) && ((*tokens)->op == op);
 }
 
 

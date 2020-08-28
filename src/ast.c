@@ -1,14 +1,81 @@
 #include "ast.h"
 
+ast_expr primary(token **tokens) {
+    if (has(tokens, TOKEN_NAME)) {
+        ast_literal *lit = (ast_literal *)alloc(sizeof(ast_literal));
+        lit->value = eat(tokens);
+        return (ast_expr){EXPR_LITERAL, lit};
+    }
+    if (has(tokens, TOKEN_NUMBER) || has(tokens, TOKEN_STRING)) {
+        ast_literal *lit = (ast_literal *)alloc(sizeof(ast_literal));
+        lit->value = eat(tokens);
+        return (ast_expr){EXPR_LITERAL, lit};
+    }
+    return (ast_expr){0};
+}
+
 ast_expr unary(token **tokens) {
-    ast_unary *expr = (ast_unary *)alloc(sizeof(ast_unary));
-    expr->op = expect_op(tokens, 1, OP_NOT)->op;
-    expr->right = parse_expr(tokens);
-    return (ast_expr){EXPR_UNARY, expr};
+    if (has_op(tokens, TOKEN_OP, OP_NOT)) {
+        ast_unary *expr = (ast_unary *)alloc(sizeof(ast_unary));
+        expr->op = expect_op(tokens, 1, OP_NOT)->op;
+        expr->right = parse_expr(tokens);
+        return (ast_expr){EXPR_UNARY, expr};
+    }
+    return primary(tokens);
+}
+
+ast_expr mul(token **tokens) {
+    ast_expr left = unary(tokens);
+    if (has_op(tokens, TOKEN_OP, OP_MUL) || has_op(tokens, TOKEN_OP, OP_DIV) || has_op(tokens, TOKEN_OP, OP_MOD)) {
+        ast_binary *binary = (ast_binary *)alloc(sizeof(ast_binary));
+        binary->op = eat(tokens)->op;
+        binary->left = left;
+        binary->right = unary(tokens);
+        left = (ast_expr){EXPR_BINARY, binary};
+    }
+    return left;
+}
+
+ast_expr add(token **tokens) {
+    ast_expr left = mul(tokens);
+    if (has_op(tokens, TOKEN_OP, OP_ADD) || has_op(tokens, TOKEN_OP, OP_SUB)) {
+        ast_binary *binary = (ast_binary *)alloc(sizeof(ast_binary));
+        binary->op = eat(tokens)->op;
+        binary->left = left;
+        binary->right = mul(tokens);
+        left = (ast_expr){EXPR_BINARY, binary};
+    }
+    return left;
+}
+
+ast_expr comp(token **tokens) {
+    ast_expr left = add(tokens);
+    if (has_op(tokens, TOKEN_OPOP, OP_AND) || has_op(tokens, TOKEN_OPOP, OP_OR) || 
+            has_op(tokens, TOKEN_OP, OP_LT) || has_op(tokens, TOKEN_OP, OP_GT) || 
+            has_op(tokens, TOKEN_OPASSIGN, OP_LT) || has_op(tokens, TOKEN_OP, OP_GT)) {
+        ast_binary *binary = (ast_binary *)alloc(sizeof(ast_binary));
+        binary->op = eat(tokens)->op;
+        binary->left = left;
+        binary->right = add(tokens);
+        left = (ast_expr){EXPR_BINARY, binary};
+    }
+    return left;
+}
+
+ast_expr eq(token **tokens) {
+    ast_expr left = comp(tokens);
+    if (has_op(tokens, TOKEN_OPOP, OP_EQ) || has_op(tokens, TOKEN_OPASSIGN, OP_NOT)) {
+        ast_binary *binary = (ast_binary *)alloc(sizeof(ast_binary));
+        binary->op = eat(tokens)->op;
+        binary->left = left;
+        binary->right = comp(tokens);
+        left = (ast_expr){EXPR_BINARY, binary};
+    }
+    return left;
 }
 
 ast_expr parse_expr(token **tokens) {
-    return (ast_expr){0};
+    return eq(tokens);
 }
 
 ast_stmt *parse_body(token **tokens) {
@@ -72,8 +139,46 @@ ast_stmt parse_func(token **tokens, token *name, token *parent) {
         func->returns = ret;
     }
     func->body = parse_body(tokens);
-    expect(tokens, TOKEN_TERM);
+    if (has(tokens, TOKEN_TERM)) {
+        eat(tokens);
+    }
     return (ast_stmt){0, AST_DECL_FUNC, func};
+}
+
+ast_stmt parse_var_decl(token **tokens, token *name) {
+    eat(tokens); /* eat colon */
+    ast_var *var = (ast_var *)alloc(sizeof(ast_var));
+    var->name = name;
+    var->type = expect(tokens, TOKEN_NAME);
+    var->expr = (ast_expr){0};
+    if (has(tokens, TOKEN_ASSIGN)) {
+        eat(tokens);
+        var->expr = parse_expr(tokens);
+    } else {
+        var->expr = (ast_expr){0};
+    }
+    expect(tokens, TOKEN_TERM);
+    return (ast_stmt){0, AST_DECL_VAR, var};
+}
+
+ast_stmt parse_assign(token **tokens, token *name) {
+    eat(tokens); /* eat assign */
+    ast_var *assign = (ast_var *)alloc(sizeof(ast_var));
+    assign->name = name;
+    assign->type = 0;
+    assign->expr = parse_expr(tokens);
+    expect(tokens, TOKEN_TERM);
+    return (ast_stmt){0, STMT_ASSIGN, assign};
+}
+
+ast_stmt parse_define(token **tokens, token *name) {
+    eat(tokens); /* eat define */
+    ast_var *assign = (ast_var *)alloc(sizeof(ast_var));
+    assign->name = name;
+    assign->type = 0;
+    assign->expr = parse_expr(tokens);
+    expect(tokens, TOKEN_TERM);
+    return (ast_stmt){0, STMT_ASSIGN, assign};
 }
 
 ast_stmt parse_decl(token **tokens, token *name, token *parent) {
@@ -116,17 +221,24 @@ ast_stmt parse_root_keyword(token **tokens, token *keyword) {
 } 
 
 ast_stmt parse_stmt(token **tokens) {
+    if (has(tokens, TOKEN_EOF)) {
+        return (ast_stmt){0};
+    }
     if (has(tokens, TOKEN_NAME)) {
         token *name = eat(tokens);
         token *next = peek(tokens);
         switch (next->type) {
             case TOKEN_DECL:
-            printf("here\n");
                 eat(tokens); /* eat decl */
                 return parse_decl(tokens, name, 0);
             case TOKEN_NAME:
-            printf("test: %s\n", next->text);
                 return parse_root_keyword(tokens, name);
+            case TOKEN_COLON:
+                return parse_var_decl(tokens, name);
+            case TOKEN_ASSIGN:
+                return parse_assign(tokens, name);
+            case TOKEN_DEFINE:
+                return parse_define(tokens, name);
             default:
                 parse_error("unsupported token: %s\n", token_type_text[next->type]);
         }

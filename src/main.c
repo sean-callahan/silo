@@ -78,6 +78,13 @@ int main(int argc, char* argv[]) {
             }
             stmt = parse_stmt(&tokens);
             printf("stmt: %d\n", stmt.type);
+            if (stmt.type == AST_DECL_FUNC) {
+                ast_stmt *s = ((ast_func *)stmt.d)->body;
+                while (s) {
+                    printf("\tbody: %d\n", s->type);
+                    s = s->next;
+                }
+            }
         } while (stmt.d);
     }
 
