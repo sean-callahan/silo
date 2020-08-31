@@ -2,8 +2,9 @@
 
 ast_expr primary(token **tokens) {
     if (has(tokens, TOKEN_NAME)) {
+        token *name = eat(tokens);
         ast_literal *lit = (ast_literal *)alloc(sizeof(ast_literal));
-        lit->value = eat(tokens);
+        lit->value = name;
         return (ast_expr){EXPR_LITERAL, lit};
     }
     if (has(tokens, TOKEN_NUMBER) || has(tokens, TOKEN_STRING)) {
@@ -80,27 +81,30 @@ ast_expr parse_expr(token **tokens) {
 
 ast_stmt *parse_body(token **tokens) {
     expect(tokens, TOKEN_LBRACE);
-    ast_stmt *stmts = 0;
     while (has(tokens, TOKEN_TERM)) {
         eat(tokens);
     }
+    ast_stmt *first = 0;
+    ast_stmt *last = 0;
     while (!has(tokens, TOKEN_RBRACE)) {
         while (has(tokens, TOKEN_TERM)) {
             eat(tokens);
         }
         ast_stmt s = parse_stmt(tokens);
-        /* this wrap is a hack to get the linked list working */
         ast_stmt *stmt = (ast_stmt *)alloc(sizeof(ast_stmt));
         stmt->type = s.type;
         stmt->d = s.d;
-        if (stmts) {
-            stmts->next = stmt;
+        stmt->next = 0;
+        if (!first) {
+            first = stmt;
+            last = stmt;
         } else {
-            stmts = stmt;
+            last->next = stmt;
         }
+        last = stmt;
     }
     eat(tokens); /* eat right brace */
-    return stmts;
+    return first;
 }
 
 ast_stmt parse_func(token **tokens, token *name, token *parent) {

@@ -1,3 +1,4 @@
 *.o
 silo
 .DS_Store
+.vscode/
