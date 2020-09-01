@@ -1,8 +1,38 @@
 #include "ast.h"
 
+ast_expr func_call(token **tokens, token *parent, token *name) {
+    expect(tokens, TOKEN_LPAREN);
+    ast_func_call *call = (ast_func_call *)alloc(sizeof(ast_func_call));
+    call->parent = parent;
+    call->name = name;
+    call->args = 0;
+    ast_arg *last = 0;
+    while (!has(tokens, TOKEN_RPAREN)) {
+        ast_expr e = parse_expr(tokens);
+        ast_arg *arg = (ast_arg *)alloc(sizeof(ast_arg));
+        arg->type = e.type;
+        arg->d = e.d;
+        arg->next = 0;
+        if (!call->args) {
+            call->args = arg;
+        } else {
+            last->next = arg;
+        }
+        last = arg;
+        if (has(tokens, TOKEN_COMMA)) {
+            eat(tokens);
+        }
+    }
+    expect(tokens, TOKEN_RPAREN);
+    return (ast_expr){EXPR_FUNC_CALL, call};
+}
+
 ast_expr primary(token **tokens) {
     if (has(tokens, TOKEN_NAME)) {
         token *name = eat(tokens);
+        if (has(tokens, TOKEN_LPAREN)) {
+            return func_call(tokens, 0, name);
+        }
         ast_literal *lit = (ast_literal *)alloc(sizeof(ast_literal));
         lit->value = name;
         return (ast_expr){EXPR_LITERAL, lit};
@@ -111,14 +141,20 @@ ast_stmt parse_func(token **tokens, token *name, token *parent) {
     ast_func *func = (ast_func *)alloc(sizeof(ast_func));
     func->parent = parent;
     func->name = name;
+    func->params = 0;
+    ast_param *last_param = 0;
     while (!has(tokens, TOKEN_RPAREN)) {
         ast_param *param = (ast_param *)alloc(sizeof(ast_param));
         param->name = expect(tokens, TOKEN_NAME);
         param->type = expect(tokens, TOKEN_NAME);
-        if (func->params) {
-            func->params->next = param;
-        } else {
+        if (!func->params) {
             func->params = param;
+        } else {
+            last_param->next = param;
+        }
+        last_param = param;
+        if (has(tokens, TOKEN_COMMA)) {
+            eat(tokens);
         }
     }
     eat(tokens); /* eat right paren */
@@ -213,11 +249,20 @@ ast_stmt parse_silo(token **tokens) {
     return (ast_stmt){0, STMT_SILO, silo};
 }
 
+ast_stmt parse_return(token **tokens) {
+    ast_return *ret = (ast_return *)alloc(sizeof(ast_return));
+    ret->expr = parse_expr(tokens);
+    expect(tokens, TOKEN_TERM);
+    return (ast_stmt){0, STMT_RETURN, ret};
+}
+
 ast_stmt parse_root_keyword(token **tokens, token *keyword) {
     if (strcmp(keyword->text, "import") == 0) {
         return parse_import(tokens);
     } else if (strcmp(keyword->text, "silo") == 0) {
         return parse_silo(tokens);
+    } else if (strcmp(keyword->text, "return") == 0) {
+        return parse_return(tokens);
     } else {
         parse_error("unexpected root keyword %s\n", keyword->text);
         return (ast_stmt){0};

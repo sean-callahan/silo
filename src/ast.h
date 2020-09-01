@@ -17,6 +17,7 @@ typedef struct ast_import    ast_import;
 typedef struct ast_stmt      ast_stmt;
 typedef struct ast_expr      ast_expr;
 typedef struct ast_arg       ast_arg;
+typedef struct ast_return    ast_return;
 typedef struct ast_unary     ast_unary;
 typedef struct ast_binary    ast_binary;
 typedef struct ast_func_call ast_func_call;
@@ -59,6 +60,8 @@ struct ast_silo {
     token *path;
 };
 
+
+
 struct ast_import {
     /* TODO: imports should support directories, so we need a delimiter. maybe '.'? */
     token *path;
@@ -77,7 +80,8 @@ struct ast_expr {
 
 struct ast_arg {
     ast_arg *next;
-    ast_expr expr;
+    ast_type type;
+    void *d;
 };
 
 struct ast_unary {
@@ -95,8 +99,13 @@ struct ast_literal {
 };
 
 struct ast_func_call {
+    token *parent;
     token *name;
     ast_arg *args;
+};
+
+struct ast_return {
+    ast_expr expr;
 };
 
 struct ast_var {
