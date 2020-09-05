@@ -1,9 +1,11 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <unistd.h>
+#include <fcntl.h>
 
 #include "ast.h"
 #include "lex.h"
+#include "obj.h"
 
 void token_print(token t) {
     printf("%s (%d:%d) ", token_type_text[t.type], t.line, t.col);
